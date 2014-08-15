@@ -22,7 +22,8 @@
       version = "0.0.1";
 
   var config = {
-      "tags" : [ "{{", "}}" ]
+      "tags" : [ "{{", "}}" ],
+      "unescape" : false
   };
 
   var cache = {};
@@ -32,7 +33,7 @@
    * a plugin system
    */
    var Republic = {
-      "type" : ["each","if"]
+      "type" : ["each","if","with"]
    };
    extend( Republic, {
       "each" : function( scope, obj ){
@@ -44,6 +45,9 @@
       },
       "if" : function( scope, obj ){
           return !!obj ? scope : "";
+      },
+      "with" : function( scope, obj ){
+        return scope;
       }
    })
 
@@ -56,7 +60,9 @@
         tag = Republic.type.join("|"),
         handle,
         hole,
-        parse;
+        tryWrap,
+        parse,
+        unescape;
 
     // regex
     var dpl = dp[0],
@@ -64,33 +70,67 @@
         rnochar = /\W/,
         rspace = /[\r\t\n]/g,
         reach = /^\s*?each/g,
+        rwith = /^\s*?with/g,
         rtag = new RegExp( "^"+dpl+"#("+tag+")\\s+([^"+dpr+"]+)" ),
         rvar = new RegExp( dpl+"\\s*?(.*?)\\s*?"+dpr, "g"),
         rend = new RegExp( "\t(.*?)" + dpr, "g" ),
         rscope = new RegExp( dpl+"#(?:"+tag+")\\s+[^"+dpr+"]+"+dpr+"(.*?)"+dpl+"/(?:"+tag+")\\s*"+dpr,"g" );
 
+    // unescape
+    unescape = function( str ){
+      var tag = {
+        '&amp;' : '&',
+        '&lt;' : '<',
+        '&gt;' : '>',
+        '&quot;' : '"',
+        '&#x27;' : "'"
+      }
+      for(var i in tag){
+        str = str.replace(new RegExp(i,"ig"),tag[i])
+      }
+      return str;
+    }
+    escape = function( str){
+      var tag = {
+        '"' : '&quot;',
+        "'" : '&#x27;'
+      }
+      for(var i in tag){
+        str = str.replace(new RegExp(i,"ig"),tag[i])
+      }
+      return str;
+    }
 
     // handle
     handle = function( type, key, scope ){
-      return "',(function(obj){" + hole(type,scope) + "})("+key+"),'";
+      return "',(function(obj){" + hole(type,scope,key) + "})(typeof "+key+" !== 'undefined' ? "+key+" : {}),'";
+    }
+
+    // try wrap
+    tryWrap = function( str ){
+      return "\"+(function(){try{return "+str+" || '';}catch(e){return ''}}())+\"";
     }
 
     // hole
-    hole = function( type, scope ){
+    hole = function( type, scope, context ){
       var res;
+      scope = escape(scope);
       if( reach.test(type) ){
         scope = scope.replace(rvar,function(all,key){
-           return "'\"+obj[i]."+key+"+\"'";
+          return tryWrap("obj[i]."+key);
+        });
+      }else if( rwith.test(type) ){
+        scope = scope.replace(rvar,function(all,key){
+          return tryWrap(context+"."+key);
         });
       }else{
          scope = scope.replace(rvar,function(all,key){
-           return "\"+"+key+"+\"";
+           return tryWrap(key);
         });
       }
       res = Republic[type].toString().replace(rspace," ");
       res = res.substring( res.indexOf("{")+1,res.lastIndexOf("}") );
       res = res.replace(/scope/g, '"'+scope+'"');
-      console.log(res);
       return res;
     }
 
@@ -112,9 +152,10 @@
       });
 
       str = str.split(dpl).join("\t").replace(rend, "',$1,'");
-
       return str;
     }
+
+    str = settings.unescape ? unescape(str) : str;
 
     return !rnochar.test(str) ?
       cache[str] = cache[str] ||
