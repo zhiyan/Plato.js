@@ -7,6 +7,15 @@
     
         <script type="text/plato-template" id="template">
     	<h1>hello {{name}} !</h1>
+
+        {{#with info}}
+        <p>
+            {{location}} {{family}}
+        </p>
+        {{/with}}
+
+        <p>{{info.location}}</p>
+
     	<ul>
     		{{#each list}}
     		<li>name: {{id}}</li>
@@ -21,6 +30,10 @@
         	var html = document.getElementById("template").innerHTML;
         	var data = {
         			"name":"zhiyan",
+                    "info" : {
+                        "location" : "xxx",
+                        "family" : "xxx"
+                    },
         			"list":[
         				{"id":1,"name":"zhiyan"},
         				{"id":2,"name":"wang"}
@@ -31,8 +44,8 @@
 
 ## Features
 
-* Support each/if for now
-* Only 1/4 size of mustache.js
+* Support each/if/with for now
+* Only 1/3 size of mustache.js
 * Very quick, maybe. Nearly all based regexp.
 * Don't depend on the third part library, like jQuery.
 * I codding it just for fun.
