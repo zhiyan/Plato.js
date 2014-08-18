@@ -13,13 +13,13 @@
         dp = settings.tags,
         fn;
 
-    fn = Logos( str, settings);
+    fn = Parser( str, settings);
 
     return data ? fn(data) : fn;
   };
 
   var core_name = "plato",
-      version = "0.0.1";
+      version = "0.0.2";
 
   var config = {
       "tags" : [ "{{", "}}" ],
@@ -29,13 +29,13 @@
   var cache = {};
 
   /**
-   * Republic module
+   * Compile module
    * a plugin system
    */
-   var Republic = {
+   var Compile = {
       "type" : ["each","if","with"]
    };
-   extend( Republic, {
+   extend( Compile, {
       "each" : function( scope, obj ){
         var res='';
         for(var i=0;i<obj.length;i++){
@@ -52,14 +52,14 @@
    })
 
   /**
-   * Logos module
+   * Parser Module
    * a parser system
    */
-  var Logos = function( str, settings) {
+  var Parser = function( str, settings) {
     var dp = settings.tags,
-        tag = Republic.type.join("|"),
+        tag = Compile.type.join("|"),
         handle,
-        hole,
+        build,
         tryWrap,
         parse,
         unescape;
@@ -103,7 +103,7 @@
 
     // handle
     handle = function( type, key, scope ){
-      return "',(function(obj){" + hole(type,scope,key) + "})(typeof "+key+" !== 'undefined' ? "+key+" : {}),'";
+      return "',(function(obj){" + build(type,scope,key) + "})(typeof "+key+" !== 'undefined' ? "+key+" : {}),'";
     }
 
     // try wrap
@@ -111,16 +111,15 @@
       return "\"+(function(){try{return "+str+" || '';}catch(e){return ''}}())+\"";
     }
 
-    // hole
-    hole = function( type, scope, context ){
+    // build
+    build = function( type, scope, context ){
       var res;
-      scope = escape(scope);
       if( reach.test(type) ){
-        scope = scope.replace(rvar,function(all,key){
+        scope = scope.replace(/"/g,"\\\"").replace(rvar,function(all,key){
           return tryWrap("obj[i]."+key);
         });
       }else if( rwith.test(type) ){
-        scope = scope.replace(rvar,function(all,key){
+        scope = scope.replace(/"/g,"\\\"").replace(rvar,function(all,key){
           return tryWrap(context+"."+key);
         });
       }else{
@@ -128,7 +127,7 @@
            return tryWrap(key);
         });
       }
-      res = Republic[type].toString().replace(rspace," ");
+      res = Compile[type].toString().replace(rspace," ");
       res = res.substring( res.indexOf("{")+1,res.lastIndexOf("}") );
       res = res.replace(/scope/g, '"'+scope+'"');
       return res;
@@ -143,7 +142,7 @@
         var type = scope.match(rtag)[1] || "",
             key = scope.match(rtag)[2] || "";
 
-        if(type && inArray( Republic.type, type ) >= 0 ){
+        if(type && inArray( Compile.type, type ) >= 0 ){
           rscope.lastIndex = 0;
           rscope.index = 0;
           return handle( type, key, ( rscope.exec(scope) || ["",""] )[1]  );
